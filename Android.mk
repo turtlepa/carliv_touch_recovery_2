@@ -20,8 +20,13 @@ LOCAL_SRC_FILES := \
     prop.c \
     default_recovery_ui.c \
     adb_install.c \
-    verifier.c
-
+    verifier.c 
+    
+LOCAL_C_INCLUDES += external/fw_env/ \
+    external/mtd-utils/include \
+    external/mtd-utils/ubi-utils \
+    external/mtd-utils/ubi-utils/include 
+    
 ADDITIONAL_RECOVERY_FILES := $(shell echo $$ADDITIONAL_RECOVERY_FILES)
 LOCAL_SRC_FILES += $(ADDITIONAL_RECOVERY_FILES)
 
@@ -45,7 +50,7 @@ RECOVERY_TYPE :=
 endif
 
 RECOVERY_VERSION := $(RECOVERY_NAME) v2.4
-RECOVERY_VERSION_INFO := CWM-based Recovery v6+ $(RECOVERY_TYPE)
+RECOVERY_VERSION_INFO := CWM-based Recv v6+ $(RECOVERY_TYPE)-ubifs
 
 LOCAL_CFLAGS += -DRECOVERY_VERSION="$(RECOVERY_VERSION)"
 LOCAL_CFLAGS += -DRECOVERY_VERSION_INFO="$(RECOVERY_VERSION_INFO)"
@@ -108,13 +113,13 @@ LOCAL_STATIC_LIBRARIES += libbml_over_mtd
 endif
 
 LOCAL_STATIC_LIBRARIES += libminui libpixelflinger_static libpng libcutils
-LOCAL_STATIC_LIBRARIES += libstdc++ libc
+LOCAL_STATIC_LIBRARIES += libstdc++ libc libubi
 
 LOCAL_STATIC_LIBRARIES += libselinux
 
 include $(BUILD_EXECUTABLE)
 
-RECOVERY_LINKS := bu make_ext4fs edify busybox flash_image dump_image mkyaffs2image unyaffs erase_image nandroid reboot volume setprop getprop dedupe minizip setup_adbd pigz
+RECOVERY_LINKS := bu make_ext4fs edify busybox flash_image dump_image mkyaffs2image unyaffs erase_image nandroid reboot volume setprop getprop dedupe minizip setup_adbd  pigz
 
 # nc is provided by external/netcat
 RECOVERY_SYMLINKS := $(addprefix $(TARGET_RECOVERY_ROOT_OUT)/sbin/,$(RECOVERY_LINKS))

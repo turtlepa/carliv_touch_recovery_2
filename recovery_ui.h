@@ -98,8 +98,6 @@ extern gr_surface *gMenuIco;
 int
 get_menu_selection(char** headers, char** items, int menu_only, int initial_selection);
 
-int enable_key_backlight();
-
 void set_sdcard_update_bootloader_message();
 
 static void draw_screen_locked(void);

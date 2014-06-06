@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -27,13 +28,18 @@
 #include "roots.h"
 #include "common.h"
 #include "make_ext4fs.h"
+#include "libubi.h"
+#include "cutils/properties.h"
 
 #include <libgen.h>
 #include "flashutils/flashutils.h"
 #include "extendedcommands.h"
 
+#define DEFAULT_CTRL_DEV "/dev/ubi_ctrl"
+
 int num_volumes;
 Volume* device_volumes;
+static int format_ubifs_volume(const char* location);
 
 int get_num_volumes() {
     return num_volumes;
@@ -296,6 +302,88 @@ int ensure_path_mounted_at_mount_point(const char* path, const char* mount_point
         if ((result = try_mount(v->device2, mount_point, v->fs_type2, v->fs_options2)) == 0)
             return 0;
         return result;
+    } else if (strcmp(v->fs_type, "ubifs") == 0) {
+        LOGI("ensure_path_mounted ubifs:  %s %s %s %s\n", v->mount_point, v->fs_type,
+               v->device, v->device2);
+        libubi_t libubi;
+        struct ubi_info ubi_info;
+        struct ubi_dev_info dev_info;
+        struct ubi_attach_request req;
+        int err;
+        char value[32] = {0};
+
+        mtd_scan_partitions();
+        int mtdn = mtd_get_index_by_name(v->device);
+        if (mtdn < 0) {
+            LOGE("bad mtd index for %s\n", v->device);
+            return -1;
+        }
+
+        libubi = libubi_open();
+        if (!libubi) {
+            LOGE("libubi_open fail\n");
+            return -1;
+        }
+
+        /*
+         * Make sure the kernel is fresh enough and this feature is supported.
+         */
+        err = ubi_get_info(libubi, &ubi_info);
+        if (err) {
+            LOGE("cannot get UBI information\n");
+            goto out_ubi_close;
+        }
+
+        if (ubi_info.ctrl_major == -1) {
+            LOGE("MTD attach/detach feature is not supported by your kernel\n");
+            goto out_ubi_close;
+        }
+
+        req.dev_num = UBI_DEV_NUM_AUTO;
+        req.mtd_num = mtdn;
+        req.vid_hdr_offset = 0;
+        req.mtd_dev_node = NULL;
+
+        // make sure partition is detached before attaching
+        ubi_detach_mtd(libubi, DEFAULT_CTRL_DEV, mtdn);
+
+        err = ubi_attach(libubi, DEFAULT_CTRL_DEV, &req);
+        if (err) {
+            LOGE("cannot attach mtd%d", mtdn);
+            goto out_ubi_close;
+        }
+
+        /* Print some information about the new UBI device */
+        err = ubi_get_dev_info1(libubi, req.dev_num, &dev_info);
+        if (err) {
+            LOGE("cannot get information about newly created UBI device\n");
+            goto out_ubi_detach;
+        }
+
+        sprintf(value, "/dev/ubi%d_0", dev_info.dev_num);
+
+        /* Print information about the created device */
+        //err = ubi_get_vol_info1(libubi, dev_info.dev_num, 0, &vol_info);
+        //if (err) {
+        //  LOGE("cannot get information about UBI volume 0");
+        //  goto out_ubi_detach;
+        //}
+
+        if (mount(value, v->mount_point, v->fs_type,  MS_NOATIME | MS_NODEV | MS_NODIRATIME, NULL )) {
+            LOGE("cannot mount ubifs %s to %s\n", value, v->mount_point);
+            goto out_ubi_detach;
+        }
+        LOGI("mount ubifs successful  %s to %s\n", value, v->mount_point);
+
+        libubi_close(libubi);
+        return 0;
+
+out_ubi_detach:
+        ubi_detach_mtd(libubi, DEFAULT_CTRL_DEV, mtdn);
+
+out_ubi_close:
+        libubi_close(libubi);
+        return -1;
     } else {
         // let's try mounting with the mount binary and hope for the best.
         char mount_cmd[PATH_MAX];
@@ -310,7 +398,11 @@ int ensure_path_mounted_at_mount_point(const char* path, const char* mount_point
 static int ignore_data_media = 0;
 
 int ensure_path_unmounted(const char* path) {
+	int ret;
     // if we are using /data/media, do not ever unmount volumes /data or /sdcard
+    if (is_data_media_volume_path(path)) {
+        return ensure_path_unmounted("/data");
+    }
     if (strstr(path, "/data") == path && is_data_media() && !ignore_data_media) {
         return 0;
     }
@@ -320,9 +412,7 @@ int ensure_path_unmounted(const char* path) {
         LOGE("unknown volume for path [%s]\n", path);
         return -1;
     }
-    if (is_data_media_volume_path(path)) {
-        return ensure_path_unmounted("/data");
-    }
+
     if (strcmp(v->fs_type, "ramdisk") == 0) {
         // the ramdisk is always mounted; you can't unmount it.
         return -1;
@@ -341,6 +431,56 @@ int ensure_path_unmounted(const char* path) {
         // volume is already unmounted
         return 0;
     }
+    
+    if (strcmp(v->fs_type, "ubifs") != 0) {
+        return unmount_mounted_volume(mv);
+    } else {
+        libubi_t libubi;
+        struct ubi_info ubi_info;
+
+        unmount_mounted_volume(mv);
+
+        mtd_scan_partitions();
+        int mtdn = mtd_get_index_by_name(v->device);
+        if (mtdn < 0) {
+            LOGE("bad mtd index for %s\n", v->device);
+            return -1;
+        }
+
+        libubi = libubi_open();
+        if (!libubi) {
+            LOGE("libubi_open fail\n");
+            return -1;
+        }
+
+        /*
+         * Make sure the kernel is fresh enough and this feature is supported.
+         */
+        ret = ubi_get_info(libubi, &ubi_info);
+        if (ret) {
+            LOGE("cannot get UBI information\n");
+            goto out_ubi_close;
+        }
+
+        if (ubi_info.ctrl_major == -1) {
+            LOGE("MTD detach/detach feature is not supported by your kernel\n");
+            goto out_ubi_close;
+        }
+
+        ret = ubi_detach_mtd(libubi, DEFAULT_CTRL_DEV, mtdn);
+        if (ret) {
+            LOGE("cannot detach mtd%d\n", mtdn);
+            goto out_ubi_close;
+        }
+        LOGI("detach ubifs successful mtd%d\n", mtdn);
+
+        libubi_close(libubi);
+        return 0;
+
+    out_ubi_close:
+        libubi_close(libubi);
+        return -1;
+    }
 
     return unmount_mounted_volume(mv);
 }
@@ -348,14 +488,6 @@ int ensure_path_unmounted(const char* path) {
 extern struct selabel_handle *sehandle;
 
 int format_volume(const char* volume) {
-    Volume* v = volume_for_path(volume);
-    if (v == NULL) {
-        // silent failure for sd-ext
-        if (strcmp(volume, "/sd-ext") == 0)
-            return -1;
-        LOGE("unknown volume \"%s\"\n", volume);
-        return -1;
-    }
     if (is_data_media_volume_path(volume)) {
         return format_unknown_device(NULL, volume, NULL);
     }
@@ -364,6 +496,23 @@ int format_volume(const char* volume) {
     if (strstr(volume, "/data") == volume && is_data_media() && !ignore_data_media) {
         return format_unknown_device(NULL, volume, NULL);
     }
+
+    Volume* v = volume_for_path(volume);
+    if (v == NULL) {
+        // silent failure for sd-ext
+        if (strcmp(volume, "/sd-ext") != 0)
+            LOGE("unknown volume '%s'\n", volume);
+        return -1;
+    }
+    // silent failure to format non existing sd-ext when defined in recovery.fstab
+    if (strcmp(volume, "/sd-ext") == 0) {
+        struct stat s;
+        if (0 != stat(v->device, &s)) {
+            LOGI("Skipping format of sd-ext\n");
+            return -1;
+        }
+    }
+
     if (strcmp(v->fs_type, "ramdisk") == 0) {
         // you can't format the ramdisk.
         LOGE("can't format_volume \"%s\"", volume);
@@ -382,7 +531,8 @@ int format_volume(const char* volume) {
         return -1;
     }
 
-    if (strcmp(v->fs_type, "yaffs2") == 0 || strcmp(v->fs_type, "mtd") == 0) {
+    if (strcmp(v->fs_type, "yaffs2") == 0 || strcmp(v->fs_type, "mtd") == 0 ||
+        strcmp(v->fs_type, "ubifs") == 0) {
         mtd_scan_partitions();
         const MtdPartition* partition = mtd_find_partition_by_name(v->device);
         if (partition == NULL) {
@@ -402,6 +552,9 @@ int format_volume(const char* volume) {
             LOGW("format_volume: can't close MTD \"%s\"\n", v->device);
             return -1;
         }
+        if (strcmp(v->fs_type, "ubifs") == 0) {
+            return format_ubifs_volume(v->device);
+        }
         return 0;
     }
 
@@ -413,12 +566,91 @@ int format_volume(const char* volume) {
         }
         return 0;
     }
-
 #if 0
     LOGE("format_volume: fs_type \"%s\" unsupported\n", v->fs_type);
     return -1;
 #endif
     return format_unknown_device(v->device, volume, v->fs_type);
+}
+
+static int format_ubifs_volume(const char* location) {
+    int err;
+    struct ubi_info ubi_info;
+    struct ubi_dev_info dev_info;
+    struct ubi_attach_request req;
+    struct ubi_mkvol_request req2;
+    char ubinode[16] ={0};
+
+    mtd_scan_partitions();
+    int mtdn = mtd_get_index_by_name(location);
+    if (mtdn < 0) {
+        LOGE("bad mtd index for %s\n", location);
+        return -1;
+    }
+
+    libubi_t libubi;
+    libubi = libubi_open();
+    if (!libubi) {
+        LOGE("libubi_open fail\n");
+        return -1;
+    }
+
+    /*
+     * Make sure the kernel is fresh enough and this feature is supported.
+     */
+    err = ubi_get_info(libubi, &ubi_info);
+    if (err) {
+        LOGE("cannot get UBI information\n");
+        goto out_ubi_close;
+    }
+
+    if (ubi_info.ctrl_major == -1) {
+        LOGE("MTD attach/detach feature is not supported by your kernel\n");
+        goto out_ubi_close;
+    }
+
+    req.dev_num = UBI_DEV_NUM_AUTO;
+    req.mtd_num = mtdn;
+    req.vid_hdr_offset = 0;
+    req.mtd_dev_node = NULL;
+
+    err = ubi_attach(libubi, DEFAULT_CTRL_DEV, &req);
+    if (err) {
+        LOGE("cannot attach mtd%d", mtdn);
+        goto out_ubi_close;
+    }
+
+    /* Print some information about the new UBI device */
+    err = ubi_get_dev_info1(libubi, req.dev_num, &dev_info);
+    if (err) {
+        LOGE("cannot get information about newly created UBI device\n");
+        goto out_ubi_detach;
+    }
+
+    req2.vol_id = UBI_VOL_NUM_AUTO;
+    req2.alignment = 1;
+    req2.bytes = dev_info.avail_lebs*dev_info.leb_size;
+    req2.name = location;
+    req2.vol_type = UBI_DYNAMIC_VOLUME;
+
+    sprintf(ubinode, "/dev/ubi%d", dev_info.dev_num);
+
+    err = ubi_mkvol(libubi, ubinode, &req2);
+    if (err < 0) {
+        LOGE("cannot UBI create volume %s at %s %d %llu\n", req2.name, ubinode ,err, req2.bytes);
+        goto out_ubi_detach;
+    }
+
+    ubi_detach_mtd(libubi, DEFAULT_CTRL_DEV, mtdn);
+    libubi_close(libubi);
+    return 0;
+
+out_ubi_detach:
+    ubi_detach_mtd(libubi, DEFAULT_CTRL_DEV, mtdn);
+
+out_ubi_close:
+    libubi_close(libubi);
+    return -1;
 }
 
 void ignore_data_media_workaround(int ignore) {
