@@ -738,7 +738,7 @@ void wipe_all(int confirm)
         erase_volume("/datadata");
     }
     if (volume_for_path("/sd-ext") != NULL)
-        erase_volume("/sd-ext");
+         erase_volume("/sd-ext");
     erase_volume("/sdcard/.android_secure");
 	ui_print("Full wipe complete!\n");
 }
@@ -933,16 +933,7 @@ main(int argc, char **argv) {
     ui_init();
     ui_print(EXPAND(RECOVERY_VERSION)"\n");
 //  ui_print("Compiled by ............\n");
-    
-#ifdef BOARD_RECOVERY_SWIPE
-#ifndef BOARD_TOUCH_RECOVERY
-    //display directions for swipe controls
-    ui_print("Swipe up/down to change selections.\n");
-    ui_print("Swipe to the right for enter.\n");
-    ui_print("Swipe to the left for back.\n");
-#endif
-#endif    
-    
+
     load_volume_table();
     process_volumes();
     LOGI("Processing arguments.\n");
@@ -1127,7 +1118,7 @@ int enable_key_backlight() {
     if (fd < 0)
         return -1;
 
-    ret = snprintf(str, sizeof(str), "%d", 255);
+    ret = snprintf(str, sizeof(str), "%d", 165);
     ret = write(fd, str, ret);
 
     close(fd);

@@ -1138,7 +1138,7 @@ int is_safe_to_format(char* name)
 {
     char str[255];
     char* partition;
-    property_get("ro.cwm.forbid_format", str, "/misc,/radio,/bootloader,/recovery,/efs,/wimax");
+    property_get("ro.cwm.forbid_format", str, "/misc,/nvram,/radio,/bootloader,/recovery,/efs,/wimax");
 
     partition = strtok(str, ", ");
     while (partition != NULL) {
