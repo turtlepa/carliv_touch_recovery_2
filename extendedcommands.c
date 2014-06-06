@@ -599,7 +599,7 @@ void show_nandroid_restore_menu(const char* path)
         return;
 
     if (confirm_selection("Confirm restore?", "Yes - Restore"))
-        nandroid_restore(file, 1, 1, 1, 1, 1, 0);
+        nandroid_restore(file, 1, 1, 1, 1, 1, 1, 0);
 }
 
 void show_nandroid_delete_menu(const char* path)
@@ -1303,18 +1303,19 @@ void show_nandroid_advanced_backup_menu(const char *path, int other_sd)
 					NULL
     };
     
-    int backup_list [7];
-    char* list[7];
+    int backup_list [8];
+    char* list[8];
     
     backup_list[0] = 1;
     backup_list[1] = 1;
     backup_list[2] = 1;
     backup_list[3] = 1;
     backup_list[4] = 1;
-    backup_list[5] = NULL;
+    backup_list[5] = 1;
+    backup_list[6] = NULL;
     
-    list[5] = "Perform Backup";
-    list[6] = NULL;
+    list[6] = "Perform Backup";
+    list[7] = NULL;
     
     int cont = 1;
     for (;cont;) {
@@ -1332,16 +1333,21 @@ void show_nandroid_advanced_backup_menu(const char *path, int other_sd)
     		list[2] = "Backup system: Yes";
 	    else
 	    	list[2] = "Backup system: No";
-
+	    	
 	    if (backup_list[3] == 1)
-	    	list[3] = "Backup data: Yes";
+    		list[3] = "Backup custpack: Yes";
 	    else
-	    	list[3] = "Backup data: No";
+	    	list[3] = "Backup custpack: No";	
 
 	    if (backup_list[4] == 1)
-	    	list[4] = "Backup cache: Yes";
+	    	list[4] = "Backup data: Yes";
 	    else
-	    	list[4] = "Backup cache: No";
+	    	list[4] = "Backup data: No";
+
+	    if (backup_list[5] == 1)
+	    	list[5] = "Backup cache: Yes";
+	    else
+	    	list[5] = "Backup cache: No";
 	    	
 	    int chosen_item = get_menu_selection (advancedheaders, list, 0, 0);
 	    switch (chosen_item) {
@@ -1355,15 +1361,17 @@ void show_nandroid_advanced_backup_menu(const char *path, int other_sd)
 			case 3: backup_list[3] = !backup_list[3];
 				break;
 			case 4: backup_list[4] = !backup_list[4];
+				break;
+			case 5: backup_list[5] = !backup_list[5];
 				break;	
 		   
-			case 5: cont = 0;
+			case 6: cont = 0;
 				break;
 		}
 	}
 	
 	nandroid_generate_timestamp_path(path, other_sd);
-	return nandroid_advanced_backup(path, backup_list[0], backup_list[1], backup_list[2], backup_list[3], backup_list[4], backup_list[5]);
+	return nandroid_advanced_backup(path, backup_list[0], backup_list[1], backup_list[2], backup_list[3], backup_list[4], backup_list[5], backup_list[6]);
 }
 
 void show_nandroid_advanced_restore_menu(const char* path)
@@ -1393,6 +1401,7 @@ void show_nandroid_advanced_restore_menu(const char* path)
 
     static char* list[] = { "Restore boot",
                             "Restore system",
+                            "Restore custpack",
                             "Restore data",
                             "Restore cache",
                             "Restore sd-ext",
@@ -1402,7 +1411,7 @@ void show_nandroid_advanced_restore_menu(const char* path)
     
     if (0 != get_partition_device("wimax", path)) {
         // disable wimax restore option
-        list[5] = NULL;
+        list[6] = NULL;
     }
 
     static char* confirm_restore  = "Confirm restore?";
@@ -1412,27 +1421,31 @@ void show_nandroid_advanced_restore_menu(const char* path)
     {
         case 0:
             if (confirm_selection(confirm_restore, "Yes - Restore boot"))
-                nandroid_restore(file, 1, 0, 0, 0, 0, 0);
+                nandroid_restore(file, 1, 0, 0, 0, 0, 0, 0);
             break;
         case 1:
             if (confirm_selection(confirm_restore, "Yes - Restore system"))
-                nandroid_restore(file, 0, 1, 0, 0, 0, 0);
+                nandroid_restore(file, 0, 1, 0, 0, 0, 0, 0);
             break;
         case 2:
-            if (confirm_selection(confirm_restore, "Yes - Restore data"))
-                nandroid_restore(file, 0, 0, 1, 0, 0, 0);
+            if (confirm_selection(confirm_restore, "Yes - Restore custpack"))
+                nandroid_restore(file, 0, 0, 1, 0, 0, 0, 0);
             break;
         case 3:
-            if (confirm_selection(confirm_restore, "Yes - Restore cache"))
-                nandroid_restore(file, 0, 0, 0, 1, 0, 0);
+            if (confirm_selection(confirm_restore, "Yes - Restore data"))
+                nandroid_restore(file, 0, 0, 0, 1, 0, 0, 0);
             break;
         case 4:
-            if (confirm_selection(confirm_restore, "Yes - Restore sd-ext"))
-                nandroid_restore(file, 0, 0, 0, 0, 1, 0);
+            if (confirm_selection(confirm_restore, "Yes - Restore cache"))
+                nandroid_restore(file, 0, 0, 0, 0, 1, 0, 0);
             break;
         case 5:
+            if (confirm_selection(confirm_restore, "Yes - Restore sd-ext"))
+                nandroid_restore(file, 0, 0, 0, 0, 0, 1, 0);
+            break;
+        case 6:
             if (confirm_selection(confirm_restore, "Yes - Restore wimax"))
-                nandroid_restore(file, 0, 0, 0, 0, 0, 1);
+                nandroid_restore(file, 0, 0, 0, 0, 0, 0, 1);
             break;
     }
 }
@@ -2045,6 +2058,7 @@ void create_fstab()
     write_fstab_root("/datadata", file);
     write_fstab_root("/emmc", file);
     write_fstab_root("/system", file);
+    write_fstab_root("/custpack", file);
     write_fstab_root("/sdcard", file);
     write_fstab_root("/sd-ext", file);
     write_fstab_root("/external_sd", file);
@@ -2090,6 +2104,7 @@ void process_volumes() {
     ui_print("Checking for ext4 partitions...\n");
     int ret = 0;
     ret = bml_check_volume("/system");
+    ret |= bml_check_volume("/custpack");
     ret |= bml_check_volume("/data");
     if (has_datadata())
         ret |= bml_check_volume("/datadata");
@@ -2119,7 +2134,7 @@ void process_volumes() {
     ui_print("in case of error.\n");
 
     nandroid_backup(backup_path);
-    nandroid_restore(backup_path, 1, 1, 1, 1, 1, 0);
+    nandroid_restore(backup_path, 1, 1, 1, 1, 1, 1, 0);
     ui_set_show_text(0);
 }
 

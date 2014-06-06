@@ -21,7 +21,7 @@
 #include "extendedcommands.h"
 
 #ifndef SYN_MT_REPORT
-#define SYN_MT_REPORT 0x02
+#define SYN_MT_REPORT 2
 #define ABS_MT_TOUCH_MAJOR  0x30  /* Major axis of touching ellipse */
 #define ABS_MT_WIDTH_MAJOR  0x32  /* Major axis of approaching ellipse */
 #define ABS_MT_POSITION_X 0x35  /* Center X ellipse position */
@@ -332,8 +332,7 @@ static void draw_screen_locked(void)
 		int isMenu = 1;
 		int rowOffset = 0;
         int row = 0;             // current row that we are drawing on
-        if (show_menu) 
-        {
+        if (show_menu) {
 
             gr_color(HEADER_TEXT_COLOR);                   
             for (i = 0; i < menu_top; ++i) {
