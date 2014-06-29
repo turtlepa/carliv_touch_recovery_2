@@ -249,7 +249,7 @@ int install_zip(const char* packagefilepath)
         ui_print("Installation aborted.\n");
         return 1;
     }
-    ui_set_background(BACKGROUND_ICON_NONE);
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
     ui_print("\nInstall from sdcard complete.\n");
     ui_reset_icons();
     return 0;
@@ -332,8 +332,8 @@ void show_wipe_menu()
     char* list[] = { "Wipe Data - Factory Reset",
                             "Wipe Cache",
                             "Wipe Dalvik Cache",
-                            "Wipe All Data - Preflash",	 	 
-                             NULL
+                            NULL,	 	 
+                            NULL
     };
 
     for (;;)
@@ -354,11 +354,7 @@ void show_wipe_menu()
              case 2:
                 wipe_dalvik_cache(ui_text_visible());
                 if (!ui_text_visible()) return;
-                break;
-             case 3:
-                wipe_all(ui_text_visible());
-                if (!ui_text_visible()) return;
-                break;   
+                break;  
         }
     }
     

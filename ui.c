@@ -20,15 +20,6 @@
 
 #include "extendedcommands.h"
 
-#ifndef SYN_MT_REPORT
-#define SYN_MT_REPORT 2
-#define ABS_MT_TOUCH_MAJOR  0x30  /* Major axis of touching ellipse */
-#define ABS_MT_WIDTH_MAJOR  0x32  /* Major axis of approaching ellipse */
-#define ABS_MT_POSITION_X 0x35  /* Center X ellipse position */
-#define ABS_MT_POSITION_Y 0x36  /* Center Y ellipse position */
-#define ABS_MT_TRACKING_ID 0x39  /* Center Y ellipse position */
-#endif
-
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -46,6 +37,32 @@
 #include "minui/minui.h"
 #include "recovery_ui.h"
 
+#ifndef SYN_REPORT
+#define SYN_REPORT 0x00
+#endif
+#ifndef SYN_CONFIG
+#define SYN_CONFIG 0x01
+#endif
+#ifndef SYN_MT_REPORT
+#define SYN_MT_REPORT 0x02
+#endif
+#define ABS_MT_POSITION     0x2a 
+#define ABS_MT_AMPLITUDE    0x2b 
+#define ABS_MT_SLOT         0x2f
+#define ABS_MT_TOUCH_MAJOR  0x30
+#define ABS_MT_TOUCH_MINOR  0x31
+#define ABS_MT_WIDTH_MAJOR  0x32
+#define ABS_MT_WIDTH_MINOR  0x33
+#define ABS_MT_ORIENTATION  0x34
+#define ABS_MT_POSITION_X   0x35
+#define ABS_MT_POSITION_Y   0x36
+#define ABS_MT_TOOL_TYPE    0x37
+#define ABS_MT_BLOB_ID      0x38
+#define ABS_MT_TRACKING_ID  0x39
+#define ABS_MT_PRESSURE     0x3a
+#define ABS_MT_DISTANCE     0x3b
+
+
 extern int __system(const char *command);
 
 #if defined(BOARD_HAS_NO_SELECT_BUTTON) || defined(BOARD_TOUCH_RECOVERY)
@@ -53,17 +70,6 @@ static int gShowBackButton = 1;
 #else
 static int gShowBackButton = 0;
 #endif
-
-#define MENU_HEIGHT gr_get_height(gMenuIcon[MENU_BUTTON_L])				//For touch based graphical menu
-#define MENU_CENTER (gr_get_height(gMenuIcon[MENU_BUTTON_L])/2)			//To bring menu text at the center of button. Text location from bottom of menu button.
-#define MENU_INCREMENT (gr_get_height(gMenuIcon[MENU_BUTTON_L])/2)		//Used for plotting menu buttons - specify spacing between two successive buttons location (X-start, Y-start)
-#define MENU_ITEM_LEFT_OFFSET 0.03*gr_fb_width()						//X location relative to screen width for placement of menu items inside two cloumns of menu buttons
-#define MENU_ITEM_RIGHT_OFFSET 0.52*gr_fb_width()
-#define resX gr_fb_width()		
-#define resY gr_fb_height()	
-
-#define BUTTON_MAX_ROWS (int)(0.8*resY/MENU_INCREMENT)		//80% of screen length is allowed to have menu buttons
-#define BUTTON_EQUIVALENT(x) (int)((x*CHAR_HEIGHT)/MENU_INCREMENT)		//Conversion of normal line to menu button icons
 
 #define MAX_COLS 96
 #define MAX_ROWS 32
@@ -138,6 +144,18 @@ static double gProgressScopeTime, gProgressScopeDuration;
 
 // Set to 1 when both graphics pages are the same (except for the progress bar)
 static int gPagesIdentical = 0;
+
+#define MENU_HEIGHT gr_get_height(gMenuIcon[MENU_BUTTON_L])
+#define MENU_CENTER (gr_get_height(gMenuIcon[MENU_BUTTON_L])/2)
+#define MENU_INCREMENT (gr_get_height(gMenuIcon[MENU_BUTTON_L])/2)
+#define MENU_ITEM_LEFT_OFFSET 0.03*gr_fb_width()
+#define MENU_ITEM_RIGHT_OFFSET 0.52*gr_fb_width()
+
+#define resX gr_fb_width()		
+#define resY gr_fb_height()	
+
+#define BUTTON_MAX_ROWS (int)(0.8*resY/MENU_INCREMENT)
+#define BUTTON_EQUIVALENT(x) (int)((x*CHAR_HEIGHT)/MENU_INCREMENT)
 
 // Log text overlay, displayed when a magic key is pressed
 static char text[MAX_ROWS][MAX_COLS];
@@ -323,7 +341,7 @@ static void draw_screen_locked(void)
 
     if (show_text) {
         // don't "disable" the background anymore with this...
-        gr_color(0, 0, 0, 70);
+        gr_color(0, 0, 0, 20);
         gr_fill(0, 0, gr_fb_width(), gr_fb_height());
 
         int total_rows = gr_fb_height() / CHAR_HEIGHT;
@@ -1108,7 +1126,7 @@ static int ui_niced = 0;
 void ui_set_nice(int enabled) {
     ui_nice = enabled;
 }
-#define NICE_INTERVAL 100
+#define NICE_INTERVAL 300
 int ui_was_niced() {
     return ui_niced;
 }

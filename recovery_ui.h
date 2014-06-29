@@ -66,7 +66,7 @@ extern int device_perform_action(int which);
 #define SELECT_ITEM         -4
 #define GO_BACK             -5
 
-#define ITEM_POWER           0
+#define ITEM_REBOOT          0
 #define ITEM_APPLY_EXT       1
 #define ITEM_APPLY_SDCARD    1  // historical synonym for ITEM_APPLY_EXT
 #define ITEM_APPLY_ZIP       1  // used for installing an update from a zip
@@ -77,13 +77,19 @@ extern int device_perform_action(int which);
 #define ITEM_PARTITION       4
 #define ITEM_ADVANCED        5
 #define ITEM_CARLIV          6
-#define ITEM_REBOOT          7
+#define ITEM_POWER           7
 
 // Header text to display above the main menu.
 extern char* MENU_HEADERS[];
 
 // Text of menu items.
 extern char* MENU_ITEMS[];
+
+extern int device_wipe_data();
+
+extern int device_wipe_cache();
+
+extern int device_wipe_dalvik_cache();
 
 // Loosely track the depth of the current menu
 extern int ui_root_menu;
