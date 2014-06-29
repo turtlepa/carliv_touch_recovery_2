@@ -27,14 +27,14 @@
 
 char* MENU_HEADERS[] = { NULL };
 
-char* MENU_ITEMS[] = { "Power Menu",
+char* MENU_ITEMS[] = { "Reboot Phone",
                        "Install zip",
                        "Wipe Menu",
                        "Backup/Restore",
                        "Mounts/Storage",
                        "Advanced Menu",
                        "Carliv",
-                       "Reboot Phone",
+                       "Power Menu",
                        NULL };
 
 void device_ui_init(UIParameters* ui_parameters) {
@@ -52,22 +52,13 @@ int device_wipe_cache() {
     return 0;
 }
 
-int device_wipe_dalvik_cache() {
-    return 0;
-}
-
-int device_wipe_all() {
-    return 0;
-}
-
 int device_perform_action(int which) {
     return which;
 }
 
-extern int device_reboot_now(volatile char* key_pressed, int key_code);
-
-// call a clean reboot
-void reboot_main_system(int cmd, int flags, char *arg);
+int device_reboot_now(volatile char* key_pressed, int key_code) {
+    return 0;
+}
 
 //For those devices which has skewed X axis and Y axis detection limit (Not similar to XY resolution of device), So need normalization
 int MT_X(int fd, int x)

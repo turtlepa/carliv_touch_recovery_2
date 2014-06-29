@@ -409,14 +409,9 @@ copy_sideloaded_package(const char* original_path) {
   return strdup(copy_path);
 }
 
-int device_reboot_now(volatile char* key_pressed, int key_code) {
-    return 0;
-}
-
 static char**
 prepend_title(char** headers) {
     char* title[] = { EXPAND(RECOVERY_VERSION),
-                      EXPAND(RECOVERY_VERSION_INFO),
                       "",
                       NULL };
 
@@ -715,34 +710,6 @@ void wipe_dalvik_cache(int confirm) {
 	ensure_path_unmounted("/data");
 }
 
-void wipe_all(int confirm) 
-{
-    if (confirm) {
-        if (!confirm_selection("Confirm wipe of all including system?", "Yes - Wipe All"))
-        {
-			return;
-		}
-
-        if (!confirm_selection("Are you sure? It will wipe even system.", "Yes"))
-        {
-			return;
-		}
-    }
-        
-	ui_print("\n-- Wiping system, data, cache...\n");
-	device_wipe_all();
-	erase_volume("/system");
-    erase_volume("/data");
-    erase_volume("/cache");
-    if (has_datadata()) {
-        erase_volume("/datadata");
-    }
-    if (volume_for_path("/sd-ext") != NULL)
-         erase_volume("/sd-ext");
-    erase_volume("/sdcard/.android_secure");
-	ui_print("Full wipe complete!\n");
-}
-
 static void headless_wait() {
   ui_show_text(0);
   char** headers = prepend_title((const char**)MENU_HEADERS);
@@ -778,9 +745,9 @@ prompt_and_wait() {
 
         int status;
         switch (chosen_item) {
-            case ITEM_POWER:
-                show_power_menu();
-                break;
+            case ITEM_REBOOT:
+                poweroff = 0;
+                return;
 
             case ITEM_APPLY_ZIP:
                 show_install_update_menu();
@@ -806,9 +773,9 @@ prompt_and_wait() {
                 show_carliv_menu();
                 break;  
                 
-            case ITEM_REBOOT:
-                poweroff = 0;
-                return;      
+            case ITEM_POWER:
+                show_power_menu();
+                break;      
         }
     }
 }
@@ -927,12 +894,12 @@ main(int argc, char **argv) {
     // If these fail, there's not really anywhere to complain...
     freopen(TEMPORARY_LOG_FILE, "a", stdout); setbuf(stdout, NULL);
     freopen(TEMPORARY_LOG_FILE, "a", stderr); setbuf(stderr, NULL);
-    printf("Starting recovery on %s", ctime(&start));
+    printf("Starting recovery on %s\n", ctime(&start));
 
     device_ui_init(&ui_parameters);
     ui_init();
-    ui_print(EXPAND(RECOVERY_VERSION)"\n");
-//  ui_print("Compiled by ............\n");
+    ui_print(EXPAND(RECOVERY_VERSION_INFO)"\n");
+//  ui_print("Compiled by carliv@xda\n");
 
     load_volume_table();
     process_volumes();
@@ -986,8 +953,6 @@ main(int argc, char **argv) {
 
     LOGI("device_recovery_start()\n");
     device_recovery_start();
-    
-    enable_key_backlight();
 
     printf("Command:");
     for (arg = 0; arg < argc; arg++) {
@@ -1106,27 +1071,6 @@ main(int argc, char **argv) {
         reboot_main_system(ANDROID_RB_POWEROFF, 0, 0);
     }
     return EXIT_SUCCESS;
-}
-
-int enable_key_backlight() {
-    char str[20];
-    int fd;
-    int ret;
-
-    fd = open("/sys/class/leds/button-backlight/brightness", O_WRONLY);
-
-    if (fd < 0)
-        return -1;
-
-    ret = snprintf(str, sizeof(str), "%d", 165);
-    ret = write(fd, str, ret);
-
-    close(fd);
-
-    if (ret < 0)
-       return -1;
-
-    return 0;
 }
 
 int get_allow_toggle_display() {

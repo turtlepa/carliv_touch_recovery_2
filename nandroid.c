@@ -128,7 +128,9 @@ static void nandroid_callback(const char* filename)
     tmp[ui_get_text_cols() - 1] = '\0';
     nandroid_files_count++;
     ui_increment_frame();
+    ui_set_log_stdout(0);
     ui_nice_print("%s\n", tmp);
+    ui_set_log_stdout(1);
     if (!ui_was_niced() && nandroid_files_total != 0)
         ui_set_progress((float)nandroid_files_count / (float)nandroid_files_total);
     if (!ui_was_niced())
@@ -603,6 +605,56 @@ int nandroid_advanced_backup(const char* backup_path, int boot, int recovery, in
     return 0;
 }
 
+int nvram_backup(const char* backup_path)
+{
+    ui_set_background(BACKGROUND_ICON_INSTALLING);
+
+	char tmp[PATH_MAX];
+	if (ensure_path_mounted(backup_path) != 0) {
+		sprintf(tmp, "Can't mount %s\n", backup_path);
+        return print_and_error(tmp);
+	}
+
+    int ret;
+	struct stat sn;
+	sprintf(tmp, "%s/nvram.img", backup_path);
+	
+	if (stat(tmp, &sn) == 0)
+    {
+	    ui_print("Nvram image already present, skipping...\n");
+	    return 0;          
+    } 
+    else {
+		
+		    struct statfs s;
+		    Volume* volume = volume_for_path(backup_path);
+		    if (0 != (ret = statfs(volume->mount_point, &s)))
+		        return print_and_error("Unable to stat backup path.\n");
+		
+		    uint64_t sdcard_free_mb = recalc_sdcard_space(backup_path);
+		
+		    ui_print("SD Card space free: %lluMB\n", sdcard_free_mb);
+		    if (sdcard_free_mb < minimum_storage) {
+		        if (show_lowspace_menu(sdcard_free_mb, backup_path) == 1) {
+					return 0;
+				}
+			}
+		
+			ensure_directory(backup_path);
+		
+		    if (0 != (ret = nandroid_backup_partition(backup_path, "/nvram")))
+		        return ret;
+		
+	}
+
+    sync();
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
+    ui_reset_progress();
+    ui_reset_icons();
+    ui_print("\nBackup complete!\n");
+    return 0;
+}
+
 int nandroid_dump(const char* partition) {
     // silence our ui_print statements and other logging
     ui_set_log_stdout(0);
@@ -991,6 +1043,35 @@ int nandroid_restore(const char* backup_path, int restore_boot, int restore_syst
 
     if (restore_sdext && 0 != (ret = nandroid_restore_partition(backup_path, "/sd-ext")))
         return ret;
+
+    sync();
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
+    ui_reset_progress();
+    ui_reset_icons();
+    ui_print("\nRestore complete!\n");
+    return 0;
+}
+
+int nvram_restore(const char* backup_path)
+{
+    ui_set_background(BACKGROUND_ICON_INSTALLING);
+
+    if (ensure_path_mounted(backup_path) != 0)
+        return print_and_error("Can't mount backup path\n");
+
+    char tmp[PATH_MAX];
+    int ret;
+	struct stat s;
+	sprintf(tmp, "%s/nvram.img", backup_path);
+	
+	if (stat(tmp, &s) == 0)
+    {
+	    if (NULL != volume_for_path("/nvram") && 0 != (ret = nandroid_restore_partition(backup_path, "/nvram")))
+            return ret;           
+    } 
+    else {
+		ui_print("No nvram image present, skipping...\n");
+	}
 
     sync();
     ui_set_background(BACKGROUND_ICON_CLOCKWORK);

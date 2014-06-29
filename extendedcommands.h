@@ -32,6 +32,8 @@ show_nandroid_restore_menu(const char* path);
 void
 show_nandroid_advanced_restore_menu(const char* path);
 
+void show_nvram_menu();
+
 void show_wipe_menu();
 
 void
@@ -55,21 +57,11 @@ void show_carliv_menu();
 void
 show_advanced_menu();
 
-int device_wipe_all();
-
-int device_wipe_data();
-
-int device_wipe_cache();
-
-int device_wipe_dalvik_cache();
-
 void wipe_data(int confirm);
 
 void wipe_cache(int confirm);
 
 void wipe_dalvik_cache(int confirm);
-
-void wipe_all(int confirm);
 
 int format_device(const char *device, const char *path, const char *fs_type);
 
