@@ -249,7 +249,7 @@ int install_zip(const char* packagefilepath)
         ui_print("Installation aborted.\n");
         return 1;
     }
-    ui_set_background(BACKGROUND_ICON_NONE);
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
     ui_print("\nInstall from sdcard complete.\n");
     ui_reset_icons();
     return 0;
@@ -332,8 +332,8 @@ void show_wipe_menu()
     char* list[] = { "Wipe Data - Factory Reset",
                             "Wipe Cache",
                             "Wipe Dalvik Cache",
-                            "Wipe All Data - Preflash",	 	 
-                             NULL
+                            NULL,	 	 
+                            NULL
     };
 
     for (;;)
@@ -353,10 +353,6 @@ void show_wipe_menu()
                 break;  
              case 2:
                 wipe_dalvik_cache(ui_text_visible());
-                if (!ui_text_visible()) return;
-                break;
-             case 3:
-                wipe_all(ui_text_visible());
                 if (!ui_text_visible()) return;
                 break;   
         }
@@ -1779,6 +1775,66 @@ void show_rainbow_menu()
     }
 }
 
+void show_nvram_menu()
+{
+    static char* headers[] = {  "Nvram Backup/Restore",
+                                "",
+                                NULL
+    };
+
+    char* list[] = {"Backup Nvram",
+                            "Restore Nvram",
+                            NULL,
+                            NULL,
+                            NULL
+    };
+    
+    char *other_sd = NULL;
+    if(EXTRA_SDCARD == EMMC) {
+        list[2] = "Backup Nvram to internal_sd";
+        list[3] = "Restore Nvram from internal_sd";
+        other_sd = "/emmc";
+    }
+    else if (EXTRA_SDCARD == EXTERNALSD) {        
+        list[2] = "Backup Nvram to external_sd";
+        list[3] = "Restore Nvram from external_sd";
+        other_sd = "/external_sd";
+    }	
+
+    for (;;) {
+        int chosen_item = get_filtered_menu_selection(headers, list, 0, 0, sizeof(list) / sizeof(char*));
+        if (chosen_item == GO_BACK)
+            break;
+		switch (chosen_item)
+        	{
+			char backup_path[PATH_MAX];	
+			case 0:
+                nandroid_get_backup_path(backup_path, 0);
+				nvram_backup(backup_path);
+                break;
+            case 1:
+				nandroid_get_backup_path(backup_path, 0);
+                nvram_restore(backup_path);
+                break;
+            case 2:
+                if (other_sd != NULL) {
+                    nandroid_get_backup_path(backup_path, 1);
+					nvram_backup(backup_path);
+                }
+                break;
+            case 3:
+                if (other_sd != NULL) {
+                    nandroid_get_backup_path(backup_path, 1);
+                    nvram_restore(backup_path);
+                }
+                break;
+            default:
+                break;    
+          }
+    }
+    
+}
+
 static void choose_aromafm_menu(const char* aromafm_path)
 {
     if (ensure_path_mounted(aromafm_path) != 0) {
@@ -1868,6 +1924,10 @@ void show_carliv_menu()
                              NULL,
                              NULL
     };
+    
+    if (volume_for_path("/nvram") != NULL) {
+        list[3] = "Nvram Backup/Restore";
+    }
 
     for (;;)
     {
@@ -1915,7 +1975,10 @@ void show_carliv_menu()
                 ui_print("For Aroma File Manager is recommended version 1.80 - Calung, from amarullz xda thread, because it has a full touch support in most of devices.\n");
                 ui_print("Thank you all!\n");
                 ui_print("\n");
-                break; 
+                break;
+             case 3:
+                show_nvram_menu();
+                break;    
         }
     }
     
