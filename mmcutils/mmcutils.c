@@ -644,6 +644,13 @@ int cmd_mmc_backup_raw_partition(const char *partition, const char *filename)
             printf("MTK_UBOOT_DEVICE: %s; Size: 0x%x\n", partition, sz);
         }
 #endif
+
+#if defined(MTK_NVRAM_DEVICE_NAME) && defined(MTK_NVRAM_DEVICE_SIZE)
+        if (strcmp(partition, STR(MTK_NVRAM_DEVICE_NAME)) == 0) {
+            sz = MTK_NVRAM_DEVICE_SIZE;
+            printf("MTK_NVRAM_DEVICE: %s; Size: 0x%x\n", partition, sz);
+        }
+#endif
         
         return mmc_raw_dump_internal(partition, filename, sz);
     }
