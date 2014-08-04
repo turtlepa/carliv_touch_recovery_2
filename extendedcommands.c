@@ -1581,19 +1581,20 @@ void show_nandroid_menu()
                             NULL
     };
     
-    if(nandroid_get_default_backup_format() == NANDROID_BACKUP_FORMAT_DUP) 
-        list[6] = "Free Unused Old Data";
-
     char *other_sd = NULL;
     if(EXTRA_SDCARD == EMMC) {
-		list[7] = "Backup to internal sdcard";
-		list[8] = "Restore from internal sdcard";
-		list[9] = "Delete from internal sdcard";
+		list[6] = "Backup to internal sdcard";
+		list[7] = "Restore from internal sdcard";
+		list[8] = "Delete from internal sdcard";
+		if(nandroid_get_default_backup_format() == NANDROID_BACKUP_FORMAT_DUP) 
+              list[9] = "Free Unused Old Data";
 		other_sd = "/emmc";
 	} else if (EXTRA_SDCARD == EXTERNALSD) {
-		list[7] = "Backup to external sdcard";
-		list[8] = "Restore from external sdcard";
-		list[9] = "Delete from external sdcard";
+		list[6] = "Backup to external sdcard";
+		list[7] = "Restore from external sdcard";
+		list[8] = "Delete from external sdcard";
+		if(nandroid_get_default_backup_format() == NANDROID_BACKUP_FORMAT_DUP) 
+              list[9] = "Free Unused Old Data";
 		other_sd = "/external_sd";
     }
 #ifdef RECOVERY_EXTEND_NANDROID_MENU
@@ -1635,26 +1636,26 @@ void show_nandroid_menu()
                 toggle_md5_check();
                 break;
             case 6:
-                run_dedupe_gc(other_sd);
-                break;
-            case 7:
                 {
-					nandroid_generate_timestamp_path(backup_path, 1);
+                    nandroid_generate_timestamp_path(backup_path, 1);
                     nandroid_backup(backup_path);
 					break;
                 }
-            case 8:
+            case 7:
                 if (other_sd != NULL) {
-					nandroid_get_backup_path(backup_path, 1);
+                    nandroid_get_backup_path(backup_path, 1);
                     show_nandroid_restore_menu(backup_path);
                 }
                 break;
-            case 9:
+            case 8:
                 if (other_sd != NULL) {
 					nandroid_get_backup_path(backup_path, 1);
                     show_nandroid_delete_menu(backup_path);
                 }
                 break;
+            case 9:
+                run_dedupe_gc(other_sd);
+                break;    
                     
             default:
 #ifdef RECOVERY_EXTEND_NANDROID_MENU
